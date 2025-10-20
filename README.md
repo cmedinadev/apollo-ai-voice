@@ -38,6 +38,11 @@ apollo-ai-voice/
 │   ├── server.py
 │   ├── piper_tts.py
 │   ├── requirements.txt
+|
+├── piper/               # Piper TTS Binary and Models
+│   ├── /models
+│   ├── /models/pt_BR-faber-medium.onnx
+│   ├── /models/pt_BR-faber-medium.onnx.json
 │
 └── README.md
 ````
@@ -69,7 +74,70 @@ apollo-ai-voice/
     - scipy
     - whisper
     - openai
-    - piper-tts
+
+---
+
+## 🔊 Install Audio Tools
+
+Piper TTS (Binary)
+
+Download the latest release of Piper (text-to-speech engine):
+
+Linux
+```bash
+curl -L -o piper.tar.gz https://github.com/rhasspy/piper/releases/latest/download/piper_linux_x86_64.tar.gz
+tar -xzf piper_linux_x86_64.tar.gz
+cd piper
+chmod +x piper
+````
+
+MacOS
+```bash
+# Para Intel (x86_64)
+curl -L -O https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_macos_x86_64.tar.gz
+   
+# Para Apple Silicon (ARM64)
+curl -L -O https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_macos_aarch64.tar.gz
+tar -xzf piper_macos_aarch64.tar.gz
+cd piper
+chmod +x piper
+```
+
+Windows PowerShell
+```powershell
+Invoke-WebRequest -Uri https://github.com/rhasspy/piper/releases/latest/download/piper_windows_amd64.zip -OutFile piper.zip
+Expand-Archive -Path piper.zip -DestinationPath .
+```
+
+Download a Portuguese voice model:
+
+```bash
+mkdir models
+cd models
+curl -L -o pt_BR-faber-medium.onnx https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx
+curl -L -o pt_BR-faber-medium.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json
+```
+
+---
+
+Sox (Audio Player)
+
+Used to play generated audio locally.
+
+Linux
+```bash
+sudo apt install sox
+```
+
+MacOs
+```bash
+brew install sox
+```
+
+Windows
+
+Download from https://sourceforge.net/projects/sox/
+and add it to your system PATH.
 
 ---
 
