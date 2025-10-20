@@ -5,7 +5,7 @@ from pathlib import Path
 import time
 
 class PiperTTSAdvanced:
-    def __init__(self, model_path="~/piper-models/pt_BR-faber-medium.onnx"):
+    def __init__(self, model_path="../piper/models/pt_BR-faber-medium.onnx"):
         self.model_path = os.path.expanduser(model_path)
         
         if not os.path.exists(self.model_path):
