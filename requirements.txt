@@ -1,0 +1,28 @@
+# Async MQTT client
+asyncio-mqtt==0.16.1
+
+# WebSocket support
+websockets>=12.0,<14.0
+
+# Numerical computing
+numpy>=1.24.0,<2.0.0
+
+# Text-to-Speech (instalar manualmente se necessário)
+# piper-tts==1.2.0  # Requer compilação nativa
+
+# OpenAI API client
+openai>=1.12.0
+
+# Speech recognition
+git+https://github.com/openai/whisper.git
+
+# Wake word detection
+pvporcupine==3.0.2
+
+# Scientific computing
+scipy>=1.11.0,<2.0.0
+
+# Audio processing dependencies (para Whisper)
+torch>=2.0.0
+torchaudio>=2.0.0
+ffmpeg-python>=0.2.0
