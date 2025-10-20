@@ -31,10 +31,10 @@ apollo-ai-voice/
 │   ├── src/
 │   └── ...
 │
-├── server/              # Python backend
-│   ├── app.py
-│   ├── procupine/apollo_wakeword.py
-│   ├── procupine/porcupine_params_pt.pv
+\├── server/              # Python backend
+│   ├── porcupine/apollo_wakeword.py
+│   ├── porcupine/porcupine_params_pt.pv
+│   ├── server.py
 │   ├── piper_tts.py
 │   ├── requirements.txt
 │
