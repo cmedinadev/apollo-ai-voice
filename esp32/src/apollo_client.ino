@@ -2,20 +2,26 @@
 #include <WebSocketsClient.h>
 #include "driver/i2s.h"
 #include <math.h>
-
-// ====== CONFIG WIFI ======
-const char* ssid = "your-network-name";
-const char* password = "your-network-password";
+#include <WiFiManager.h>  
+#include <Preferences.h>
+#include <WebServer.h>
 
 // ====== CONFIG WEBSOCKET ======
-const char* websocket_host = "XXXXXX";
-const int websocket_port = 8080;
+String websocket_host = "192.168.1.6";
+const int websocket_port = 1969;
 const char* websocket_path = "/";
 const int SAMPLE_RATE = 16000;
 const int PRE_WAKE_SECONDS = 0.5;
 const int POST_WAKE_SECONDS = 1.5;
 const unsigned long MIN_RECORD_MS = 300;
 const int  QAKE_WORD = 1000;
+const float alpha = 0.1; 
+
+Preferences prefs;
+
+const char* PREF_NAMESPACE = "apollo";
+const char* PREF_KEY_SERVER = "server";
+
 
 WebSocketsClient webSocket;
 
@@ -43,8 +49,8 @@ unsigned long recordStart = 0;
 unsigned long lastSound = 0;
 unsigned long postWakeStartTime = 0;
 
-float wakeThreshold = 0.014;
-float wakeThresholdSilence = 0.01;
+float wakeThreshold = 0.2;
+float wakeThresholdSilence = 0.06;
 
 // ====== BUFFER DE WAKE WORD (1s de áudio) ======
 const int wakeBufferSamples = SAMPLE_RATE;
@@ -55,10 +61,23 @@ int wakeBufferIndex = 0;
 void setup_i2s_microphone();
 void setup_i2s_speaker();
 void captureAudio();
-void connectWiFi();
+void connectWiFiManager();
 void playBeep(float frequency, int duration_ms);
 void beepReady();
 void beepEndRecording();
+
+void saveServerToPrefs(const String &s) {
+  prefs.begin(PREF_NAMESPACE, false);
+  prefs.putString(PREF_KEY_SERVER, s);
+  prefs.end();
+}
+
+String readServerFromPrefs() {
+  prefs.begin(PREF_NAMESPACE, true);
+  String s = prefs.getString(PREF_KEY_SERVER, "");
+  prefs.end();
+  return s;
+}
 
 // ====== CONFIG I2S ======
 void setup_i2s_microphone() {
@@ -116,14 +135,36 @@ void setup_i2s_speaker() {
 }
 
 // ====== RMS ======
-float calculateRMS(int32_t *samples, size_t count) {
-  double sum = 0;
-  for (size_t i = 0; i < count; i++) {
-    int32_t raw = samples[i] >> 8;
-    float s = raw / 8388607.0f;
-    sum += s * s;
+float calculateRMS(int32_t *buf, size_t samples) {
+  double sumsq = 0.0;
+
+  // Estados do filtro
+  static float hp_prev = 0.0;   // Passa-alta
+  static float lp_prev = 0.0;   // Passa-baixa
+
+  // Coeficientes do filtro (ajuste conforme taxa de amostragem)
+  const float hp_alpha = 0.9f;  // passa-alta (~100 Hz @16 kHz)
+  const float lp_alpha = 0.1f;  // passa-baixa (~3 kHz @16 kHz)
+
+  for (size_t i = 0; i < samples; i++) {
+    // Normaliza sinal (24-bit -> -1.0 a +1.0)
+    int32_t s = buf[i] >> 8;
+    float x = (float)s / 32768.0f;
+
+    // --- Passa-alta ---
+    float hp = x - hp_prev + hp_alpha * hp_prev;
+    hp_prev = hp;
+
+    // --- Passa-baixa ---
+    float lp = lp_prev + lp_alpha * (hp - lp_prev);
+    lp_prev = lp;
+
+    // Soma quadrados (para RMS)
+    sumsq += lp * lp;
   }
-  return sqrt(sum / count);
+
+  // Calcula RMS final
+  return sqrt(sumsq / samples);
 }
 
 // ====== CAPTURA ======
@@ -136,6 +177,9 @@ void captureAudio() {
   i2s_read(I2S_MIC_PORT, s32, bufSize * sizeof(int32_t), &bytesRead, portMAX_DELAY);
   size_t samplesRead = bytesRead / sizeof(int32_t);
 
+  float rms = calculateRMS(s32, samplesRead);
+  float env = alpha * rms + (1.0 - alpha) * env;
+
   for (size_t i = 0; i < samplesRead; i++) {
     int32_t shifted = s32[i] >> 11;
     s16[i] = (int16_t)constrain(shifted, -32768, 32767);
@@ -144,10 +188,8 @@ void captureAudio() {
     wakeBufferIndex = (wakeBufferIndex + 1) % wakeBufferSamples;
   }
 
-  float rms = calculateRMS(s32, samplesRead);
-
   // ====== ENVIO DE BUFFER DE WAKE WORD ======
-  if (!recording && !waitingResponse && !sendingWakeBuffer && rms > wakeThreshold) {
+  if (!recording && !waitingResponse && !sendingWakeBuffer && env > wakeThreshold) {
       Serial.println("[MIC] 🚀 Enviando buffer de wake word...");
       sendingWakeBuffer = true;
       webSocket.sendTXT("wake_buffer_start");
@@ -174,7 +216,7 @@ void captureAudio() {
   // ====== ENVIO DE ÁUDIO CONTÍNUO ======
   if (recording) {
     webSocket.sendBIN((uint8_t*)s16, samplesRead * sizeof(int16_t));
-    if (rms > wakeThresholdSilence) lastSound = millis();
+    if (env > wakeThresholdSilence) lastSound = millis();
 
     if (millis() - recordStart > MAX_RECORD_MS ||
         (millis() - lastSound > SILENCE_TIMEOUT_MS)) {
@@ -270,12 +312,42 @@ void beepReady() { playBeep(1000, 150); delay(100); playBeep(1200, 150); }
 void beepEndRecording() { playBeep(600, 300); }
 
 // ====== WI-FI ======
-void connectWiFi() {
-  WiFi.begin(ssid, password);
-  Serial.print("Conectando");
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println("\n✅ Wi-Fi conectado");
-  Serial.println(WiFi.localIP());
+//void connectWiFi() {
+//  WiFi.begin(ssid, password);
+//  Serial.print("Conectando");
+//  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+//  Serial.println("\n✅ Wi-Fi conectado");
+//  Serial.println(WiFi.localIP());
+//}
+
+void connectWiFiManager() {
+    // read stored server
+  String stored = readServerFromPrefs();
+  if (stored.length()) websocket_host = stored;
+  Serial.println("Server: " + websocket_host);
+
+  WiFiManager wifiManager;
+
+  // Create a custom parameter for server address
+  WiFiManagerParameter custom_server("server", "Server URL", websocket_host.c_str(), 128);
+  wifiManager.addParameter(&custom_server);
+
+  // Start config portal (blocks until connected)
+  if (!wifiManager.autoConnect("ESP32-Config")) {
+    Serial.println("Failed to connect and hit timeout");
+    // optionally restart
+    ESP.restart();
+  }
+
+
+
+  // after connection, read the value the user typed
+  String newServer = custom_server.getValue();
+  if (newServer.length() && newServer != websocket_host) {
+    websocket_host = newServer;
+    saveServerToPrefs(websocket_host);
+    Serial.println("Saved new server: " + websocket_host);
+  }
 }
 
 // ====== SETUP ======
@@ -283,7 +355,8 @@ void setup() {
   Serial.begin(115200);
   setup_i2s_speaker();
   setup_i2s_microphone();
-  connectWiFi();
+  
+  connectWiFiManager();
 
   webSocket.begin(websocket_host, websocket_port, websocket_path);
   webSocket.onEvent(webSocketEvent);
