@@ -33,11 +33,9 @@ apollo-ai-voice/
 │   └── ...
 │
 ├── server/              # Python backend
-│   ├── porcupine/apollo_wakeword.py
-│   ├── porcupine/porcupine_params_pt.pv
-│   ├── server.py
-│   ├── piper_tts.py
-│   ├── requirements.txt
+│   ├── apollo/          # config, session (protocol), stt, llm, tts, wakeword
+│   ├── porcupine/       # .ppn keyword + .pv model (Porcupine 4.x)
+│   ├── tests/
 |
 ├── piper/               # Piper TTS Binary and Models
 │   ├── /models
@@ -150,11 +148,13 @@ and add it to your system PATH.
 
 ### 2. Start the Python server
 
-- Navigate to the /server/ folder.
-- Run:
+- Create a venv and install deps: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
+- Copy `.env.example` to `.env` and set `OPENAI_API_KEY` and `PICOVOICE_ACCESS_KEY`.
+- Run from the `server/` folder:
 ```bash
-python server.py
+../.venv/bin/python -m apollo
 ```
+- Tests (simulated ESP32): `../.venv/bin/python tests/test_protocol.py`
 - The server will listen for incoming audio streams from the ESP32 and handle wake word detection, transcription, and response generation.
 
 ### 3. Interaction flow

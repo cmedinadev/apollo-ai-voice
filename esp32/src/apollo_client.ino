@@ -391,6 +391,10 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
         wakeBufferSending = false;
         clearAudioQueue(); // Limpar fila se wake word foi rejeitada
       } 
+      else if (strcmp((char*)payload, "interaction_ended") == 0) {
+        Serial.println("[WS] ℹ️ Nada a responder, voltando a escutar");
+        finishInteraction();
+      }
       else if (length >= strlen("set_volume:") && 
               strncmp((char*)payload, "set_volume:", strlen("set_volume:")) == 0) {
 

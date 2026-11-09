@@ -1,28 +1,21 @@
-# Async MQTT client
-asyncio-mqtt==0.16.1
-
-# WebSocket support
+# WebSocket server
 websockets>=12.0,<14.0
+python-dotenv>=1.0
 
-# Numerical computing
+# STT
+openai-whisper
+torch>=2.0.0
 numpy>=1.24.0,<2.0.0
 
-# Text-to-Speech (instalar manualmente se necessário)
-# piper-tts==1.2.0  # Requer compilação nativa
-
-# OpenAI API client
+# LLM
 openai>=1.12.0
 
-# Speech recognition
-git+https://github.com/openai/whisper.git
+# Wake word (must match the .ppn/.pv version in server/porcupine)
+pvporcupine==4.0.0
 
-# Wake word detection
-pvporcupine==3.0.2
+# TTS (needs sox or ffmpeg on PATH: brew install sox ffmpeg)
+piper-tts>=1.2.0
 
-# Scientific computing
+# Optional audio cleanup (CLEAN_AUDIO=1)
 scipy>=1.11.0,<2.0.0
-
-# Audio processing dependencies (para Whisper)
-torch>=2.0.0
-torchaudio>=2.0.0
-ffmpeg-python>=0.2.0
+noisereduce>=3.0.3
