@@ -133,7 +133,7 @@ void setup_i2s_microphone() {
       .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
       .sample_rate = SAMPLE_RATE,
       .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-      .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+      .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
       .communication_format = I2S_COMM_FORMAT_STAND_I2S,
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
       .dma_buf_count = 8,
@@ -160,7 +160,7 @@ void setup_i2s_speaker() {
       .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
       .sample_rate = SAMPLE_RATE,
       .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-      .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+      .channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT,
       .communication_format = I2S_COMM_FORMAT_STAND_I2S,
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
       .dma_buf_count = 8,
@@ -366,6 +366,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED:
       Serial.println("[WS] ✅ Conectado");
+      finishInteraction(); // start from a clean state after (re)connecting
       playBeep(1000, 150);
       break;
 
@@ -461,7 +462,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length) {
 
     case WStype_DISCONNECTED:
       Serial.println("[WS] ❌ Desconectado");
-      clearAudioQueue(); // Limpar fila ao desconectar
+      finishInteraction(); // reset flags + clear queue so we never get stuck
       break;
 
     default:
@@ -538,7 +539,27 @@ void setup() {
 }
 
 // ====== LOOP ======
+// Serial command: "server <ip-or-host>" saves the server address and reboots.
+void handleSerialCommands() {
+  if (!Serial.available()) return;
+  String line = Serial.readStringUntil('\n');
+  line.trim();
+  if (line.startsWith("server ")) {
+    String host = line.substring(7);
+    host.trim();
+    if (host.length()) {
+      saveServerToPrefs(host);
+      Serial.println("Saved server: " + host + " - rebooting");
+      delay(200);
+      ESP.restart();
+    }
+  } else if (line.length()) {
+    Serial.println("Commands: server <ip-or-host>");
+  }
+}
+
 void loop() {
+  handleSerialCommands();
   webSocket.loop();
   if (WiFi.status() == WL_CONNECTED && webSocket.isConnected() &&
       !receivingAudio && !waitingResponse) {
@@ -691,9 +712,12 @@ void computeThresholds(float& dynamicThreshold, float& dynamicSilenceThreshold) 
   dynamicSilenceThreshold = envNoise * 1.5;
 }
 
+// INMP441 = 24-bit data in a 32-bit word. >>16 is unity gain; >>11 clipped badly.
+#define MIC_SHIFT_BITS 14
+
 void convertAndStoreSamples(int32_t* s32, int16_t* s16, size_t samplesRead) {
   for (size_t i = 0; i < samplesRead; i++) {
-    int32_t shifted = s32[i] >> 11;
+    int32_t shifted = s32[i] >> MIC_SHIFT_BITS;
     s16[i] = (int16_t)constrain(shifted, -32768, 32767);
     wakeBuffer[wakeBufferIndex] = s16[i];
     wakeBufferIndex = (wakeBufferIndex + 1) % wakeBufferSamples;

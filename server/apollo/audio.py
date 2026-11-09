@@ -2,6 +2,7 @@
 
 import io
 import logging
+import time
 import wave
 
 import numpy as np
@@ -26,12 +27,22 @@ def pcm16_to_wav(pcm: bytes, sample_rate: int = config.SAMPLE_RATE) -> bytes:
     return buf.getvalue()
 
 
+def normalize(samples: np.ndarray, target_peak: float = 0.9, max_gain: float = 30.0) -> np.ndarray:
+    """Peak-normalise quiet mic audio (Whisper does poorly on very low levels)."""
+    peak = float(np.max(np.abs(samples))) if samples.size else 0.0
+    if peak <= 0:
+        return samples
+    return np.clip(samples * min(target_peak / peak, max_gain), -1.0, 1.0).astype(np.float32)
+
+
 def save_debug(name: str, pcm: bytes) -> None:
-    """Dump received audio to disk when DEBUG_SAVE_AUDIO=1."""
+    """Dump received audio to disk (timestamped) when DEBUG_SAVE_AUDIO=1."""
     if config.DEBUG_AUDIO_DIR is None:
         return
     config.DEBUG_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
-    (config.DEBUG_AUDIO_DIR / name).write_bytes(pcm16_to_wav(pcm))
+    stem, ext = name.rsplit(".", 1)
+    stamp = time.strftime("%H%M%S")
+    (config.DEBUG_AUDIO_DIR / f"{stem}_{stamp}.{ext}").write_bytes(pcm16_to_wav(pcm))
 
 
 def clean(audio: np.ndarray, sr: int = config.SAMPLE_RATE) -> np.ndarray:

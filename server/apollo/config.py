@@ -33,10 +33,10 @@ SEND_CHUNK_BYTES = 1024
 END_MARKER = b"\xff\xff\xff\xff"
 MAX_RECORD_BYTES = SAMPLE_RATE * 2 * 30  # safety cap: 30 s of 16-bit mono
 
-# --- Wake word (Picovoice Porcupine) ---
-PICOVOICE_ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY", "")
-WAKEWORD_PATH = _path(os.getenv("WAKEWORD_PATH", "porcupine/apolo_pt_mac_v4_0_0.ppn"))
-PORCUPINE_MODEL_PATH = _path(os.getenv("PORCUPINE_MODEL_PATH", "porcupine/porcupine_params_pt.pv"))
+# --- Wake word (uses the shared Whisper model, no external key) ---
+WAKE_WORDS = [w.strip() for w in os.getenv("WAKE_WORDS", "apolo,apollo").split(",") if w.strip()]
+WAKE_MATCH_THRESHOLD = float(os.getenv("WAKE_MATCH_THRESHOLD", "0.7"))  # 0-1 fuzzy similarity
+WAKE_MIN_RMS = float(os.getenv("WAKE_MIN_RMS", "0.003"))  # skip near-silent buffers
 
 # --- STT (Whisper) ---
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
@@ -45,7 +45,8 @@ CLEAN_AUDIO = _bool("CLEAN_AUDIO", False)
 
 # --- LLM (OpenAI) ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-nano")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL") or None  # any OpenAI-compatible API (e.g. Gemini)
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gemini-flash-lite-latest")
 MAX_HISTORY = 6
 SYSTEM_PROMPT = os.getenv(
     "APOLLO_SYSTEM_PROMPT",

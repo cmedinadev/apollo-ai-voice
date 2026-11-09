@@ -27,7 +27,8 @@ class Services:
 
 async def serve() -> None:
     log.info("Loading models...")
-    services = Services(WakeWordDetector(), Transcriber(), Synthesizer(), make_client())
+    stt = Transcriber()
+    services = Services(WakeWordDetector(stt), stt, Synthesizer(), make_client())
 
     async def handler(ws) -> None:
         log.info("ESP32 connected: %s", ws.remote_address)

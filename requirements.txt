@@ -10,9 +10,6 @@ numpy>=1.24.0,<2.0.0
 # LLM
 openai>=1.12.0
 
-# Wake word (must match the .ppn/.pv version in server/porcupine)
-pvporcupine==4.0.0
-
 # TTS (needs sox or ffmpeg on PATH: brew install sox ffmpeg)
 piper-tts>=1.2.0
 

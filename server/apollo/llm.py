@@ -44,4 +44,4 @@ class Chat:
 def make_client() -> AsyncOpenAI:
     if not config.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY not set (see .env.example)")
-    return AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+    return AsyncOpenAI(api_key=config.OPENAI_API_KEY, base_url=config.OPENAI_BASE_URL)
